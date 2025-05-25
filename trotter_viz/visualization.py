@@ -103,17 +103,19 @@ class TrotterVisualizer:
                     go.Scatter(
                         x=times, y=exp_vals[:, 0],
                         name=f'{method_name} (r={steps})',
+                        legendgroup=f'{method_name} (r={steps})',
                         line=dict(color=color, dash=line_style),
-                        showlegend=(i == 0)  # Only show legend for first step count
+                        showlegend=True
                     ),
                     row=1, col=1
                 )
                 
-                # Plot magnetization
+                # Plot magnetization using the same legend group, but hide its legend entry
                 fig.add_trace(
                     go.Scatter(
                         x=times, y=exp_vals[:, 1],
                         name=f'{method_name} (r={steps})',
+                        legendgroup=f'{method_name} (r={steps})',
                         line=dict(color=color, dash=line_style),
                         showlegend=False
                     ),
