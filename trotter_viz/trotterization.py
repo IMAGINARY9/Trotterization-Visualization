@@ -7,7 +7,7 @@ quantum time evolution operators.
 
 import cirq
 import numpy as np
-from typing import Union, List
+from typing import List
 from abc import ABC, abstractmethod
 
 # Import quantum simulation core functions

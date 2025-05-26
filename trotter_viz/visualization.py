@@ -9,8 +9,8 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
+import time
+from typing import Dict, List
 
 from .hamiltonians import QuantumHamiltonians, create_observables
 from .trotterization import (
@@ -18,7 +18,7 @@ from .trotterization import (
     create_suzuki_trotter_simulator,
     compare_methods
 )
-
+from .time_estimator import TimeEstimator
 
 class TrotterVisualizer:
     """Main visualization class for Trotterization analysis."""
@@ -27,10 +27,36 @@ class TrotterVisualizer:
         """Initialize the visualizer with default settings."""
         self.color_palette = px.colors.qualitative.Set1
         self.default_figure_size = (800, 600)
+        self.time_estimator = TimeEstimator()
+    
+    def estimate_plot_time(self, plot_type: str, **kwargs) -> Dict[str, float]:
+        """
+        Estimate time for generating a specific plot.
+        
+        Args:
+            plot_type: Type of plot ('time_evolution', 'error_scaling', 'parameter_study')
+            **kwargs: Parameters for the specific plot type
+            
+        Returns:
+            Dictionary with time estimates
+        """
+        if plot_type == 'time_evolution':
+            return self.time_estimator.estimate_time_evolution_plot(**kwargs)
+        elif plot_type == 'error_scaling':
+            return self.time_estimator.estimate_error_scaling_plot(**kwargs)
+        elif plot_type == 'parameter_study':
+            return self.time_estimator.estimate_parameter_study(**kwargs)
+        else:
+            return {'total': 1.0, 'display_total': 1.0}
+    
+    def format_time_estimate(self, time_seconds: float) -> str:
+        """Format time estimate for display."""
+        return self.time_estimator.format_time_estimate(time_seconds)
     
     def plot_time_evolution(self, n_qubits: int = 4, hamiltonian_type: str = 'TFI',
                            max_time: float = 3.0, coupling: float = 1.0,
-                           magnetic_field: float = 1.0, max_steps: int = 10) -> go.Figure:
+                           magnetic_field: float = 1.0, max_steps: int = 10,
+                           show_progress: bool = False) -> go.Figure:
         """
         Create an interactive plot showing time evolution under different Trotter methods.
         
@@ -41,10 +67,14 @@ class TrotterVisualizer:
             coupling: Coupling strength parameter
             magnetic_field: Magnetic field strength
             max_steps: Maximum number of Trotter steps
+            show_progress: Whether to print progress updates
             
         Returns:
             Plotly figure with time evolution comparison
         """
+        # Track timing if progress is requested
+        start_time = time.time() if show_progress else None
+        
         # Create Hamiltonian
         if hamiltonian_type == 'TFI':
             hamiltonian = QuantumHamiltonians.transverse_field_ising(
@@ -168,12 +198,16 @@ class TrotterVisualizer:
         fig.update_yaxes(title_text="Magnetization", row=1, col=2)
         fig.update_yaxes(title_text="Expectation Value", row=2, col=1)
         fig.update_yaxes(title_text="Circuit Depth", row=2, col=2)
-        
         fig.update_layout(
             height=800,
             title_text=f"Trotterization Analysis: {title_suffix}",
             showlegend=True
         )
+        
+        # Print timing information if requested
+        if show_progress and start_time is not None:
+            elapsed_time = time.time() - start_time
+            print(f"✅ Time evolution plot completed in {elapsed_time:.2f}s")
         
         return fig
     

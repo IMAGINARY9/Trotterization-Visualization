@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
+import time
 
 # Import our modules
 from trotter_viz.visualization import TrotterVisualizer, create_dashboard_data
@@ -67,24 +67,34 @@ def main():
     show_error_analysis = st.sidebar.checkbox("Show Error Analysis", True)
     show_circuit_info = st.sidebar.checkbox("Show Circuit Information", True)
     
-    # Create visualizer
     visualizer = TrotterVisualizer()
-    
+
     # Main content area
     col1, col2 = st.columns([2, 1])
-    
     with col1:
         st.subheader("📊 Time Evolution Comparison")
+          # Estimate time for main plot generation
+        time_estimate = visualizer.estimate_plot_time(
+            'time_evolution',
+            n_qubits=n_qubits,
+            max_time=max_time,
+            max_steps=max_steps,
+            hamiltonian_type=hamiltonian_type
+        )
         
-        # Generate main plot
-        with st.spinner("Generating time evolution plots..."):
+        estimated_time_str = visualizer.format_time_estimate(time_estimate['display_total'])
+        
+        # Generate main plot with progress indicator
+        with st.spinner(f"Generating time evolution plots... (est. {estimated_time_str})"):
+            start_time = time.time()
             main_fig = visualizer.plot_time_evolution(
                 n_qubits=n_qubits,
                 hamiltonian_type=hamiltonian_type,
                 max_time=max_time,
                 coupling=coupling_strength,
                 magnetic_field=magnetic_field,
-                max_steps=max_steps
+                max_steps=max_steps,
+                show_progress=False  # Don't print to console in Streamlit
             )
             st.plotly_chart(main_fig, use_container_width=True)
     
@@ -105,21 +115,33 @@ def main():
             'Complexity': ['Low', 'Medium', 'High']
         })
         st.dataframe(comparison_df, hide_index=True)
-    
-    # Error analysis section
+      # Error analysis section
     if show_error_analysis:
         st.subheader("🔍 Error Scaling Analysis")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            error_fig = visualizer.plot_error_scaling(
-                n_qubits=min(n_qubits, 4),  # Limit for computational efficiency
-                hamiltonian_type=hamiltonian_type,
-                time=2.0,
+            # Estimate time for error analysis
+            error_time_estimate = visualizer.estimate_plot_time(
+                'error_scaling',
+                n_qubits=min(n_qubits, 4),
                 max_steps=15
             )
-            st.plotly_chart(error_fig, use_container_width=True)
+            
+            error_time_str = visualizer.format_time_estimate(error_time_estimate['display_total'])
+            
+            with st.spinner(f"Analyzing error scaling... (est. {error_time_str})"):
+                error_start_time = time.time()
+                error_fig = visualizer.plot_error_scaling(
+                    n_qubits=min(n_qubits, 4),  # Limit for computational efficiency
+                    hamiltonian_type=hamiltonian_type,
+                    time=2.0,
+                    max_steps=15
+                )
+                error_actual_time = time.time() - error_start_time
+                
+                st.plotly_chart(error_fig, use_container_width=True)
         
         with col2:
             st.markdown("""
@@ -130,9 +152,10 @@ def main():
             
             **Trade-offs:**
             - Higher-order methods are more accurate but computationally expensive
-            - Choice depends on required precision vs. available resources
-            """)
-      # Circuit information
+            - Choice depends on required precision vs. available resources            
+                        """)
+    
+    # Circuit information
     if show_circuit_info:
         st.subheader("🔄 Quantum Circuit Analysis")
         
@@ -169,8 +192,7 @@ def main():
         
         circuit_df = pd.DataFrame(circuit_data)
         st.dataframe(circuit_df, hide_index=True)
-    
-    # Parameter study section
+      # Parameter study section
     st.subheader("🧪 Parameter Study")
     
     param_study_col1, param_study_col2 = st.columns(2)
@@ -178,18 +200,43 @@ def main():
     with param_study_col1:
         st.markdown("**Coupling Strength Dependence**")
         coupling_values = np.linspace(0.2, 2.0, 10)
-        coupling_fig = visualizer.create_parameter_study(
-            'coupling', coupling_values.tolist(), n_qubits=min(n_qubits, 4)
+        
+        # Estimate time for parameter study
+        coupling_time_estimate = visualizer.estimate_plot_time(
+            'parameter_study',
+            parameter_values=len(coupling_values),
+            n_qubits=min(n_qubits, 4)
         )
-        st.plotly_chart(coupling_fig, use_container_width=True)
+        coupling_time_str = visualizer.format_time_estimate(coupling_time_estimate['display_total'])
+        
+        with st.spinner(f"Analyzing coupling dependence... (est. {coupling_time_str})"):
+            coupling_start_time = time.time()
+            coupling_fig = visualizer.create_parameter_study(
+                'coupling', coupling_values.tolist(), n_qubits=min(n_qubits, 4)
+            )
+            coupling_actual_time = time.time() - coupling_start_time
+            
+            st.plotly_chart(coupling_fig, use_container_width=True)
     
     with param_study_col2:
         st.markdown("**Evolution Time Dependence**")
         time_values = np.linspace(0.5, 4.0, 10)
-        time_fig = visualizer.create_parameter_study(
-            'time', time_values.tolist(), n_qubits=min(n_qubits, 4)
+        
+        # Estimate time for parameter study
+        time_param_estimate = visualizer.estimate_plot_time(
+            'parameter_study',
+            parameter_values=len(time_values),
+            n_qubits=min(n_qubits, 4)
         )
-        st.plotly_chart(time_fig, use_container_width=True)
+        time_param_str = visualizer.format_time_estimate(time_param_estimate['display_total'])
+        
+        with st.spinner(f"Analyzing time dependence... (est. {time_param_str})"):
+            time_param_start_time = time.time()
+            time_fig = visualizer.create_parameter_study(
+                'time', time_values.tolist(), n_qubits=min(n_qubits, 4)
+            )
+            time_param_actual_time = time.time() - time_param_start_time
+            st.plotly_chart(time_fig, use_container_width=True)
     
     # Educational content
     with st.expander("📚 Learn More About Trotterization"):

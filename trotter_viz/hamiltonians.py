@@ -6,7 +6,6 @@ in quantum simulation studies.
 """
 
 import cirq
-import numpy as np
 from typing import List
 
 
